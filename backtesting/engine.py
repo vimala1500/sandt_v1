@@ -81,15 +81,19 @@ class BacktestEngine:
             
             # Buy signal
             if df['position'].iloc[i] > 0 and position == 0:
-                shares = cash / df['close'].iloc[i]
-                cash = 0
-                position = 1
+                # Check for valid price
+                if df['close'].iloc[i] > 0:
+                    shares = cash / df['close'].iloc[i]
+                    cash = 0
+                    position = 1
             
             # Sell signal
             elif df['position'].iloc[i] < 0 and position == 1:
-                cash = shares * df['close'].iloc[i]
-                shares = 0
-                position = 0
+                # Check for valid price
+                if df['close'].iloc[i] > 0:
+                    cash = shares * df['close'].iloc[i]
+                    shares = 0
+                    position = 0
             
             df.loc[df.index[i], 'holdings'] = shares * df['close'].iloc[i]
             df.loc[df.index[i], 'cash'] = cash

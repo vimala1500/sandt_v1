@@ -80,7 +80,11 @@ def register_callbacks(app):
             return layout, ""
         
         except Exception as e:
-            error_msg = f"Error running backtest: {str(e)}"
+            from dash import html
+            error_msg = html.Div([
+                html.H4("Error Running Backtest", className="text-danger"),
+                html.P(str(e), className="text-muted")
+            ], className="alert alert-danger")
             return error_msg, ""
 
 

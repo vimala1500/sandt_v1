@@ -94,7 +94,8 @@ def calculate_sortino_ratio(returns, risk_free_rate=0.02):
         float: Sortino ratio
     """
     excess_returns = returns - (risk_free_rate / 252)
-    downside_returns = returns[returns < 0]
+    # Downside returns are those below the risk-free rate
+    downside_returns = excess_returns[excess_returns < 0]
     
     if len(downside_returns) == 0 or downside_returns.std() == 0:
         return 0

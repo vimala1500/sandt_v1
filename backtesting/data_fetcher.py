@@ -58,7 +58,7 @@ class DataFetcher:
             if data.empty:
                 raise ValueError(f"No data found for symbol {symbol}")
             
-            return data['Close'].iloc[-1]
+            return data['close'].iloc[-1]
         
         except Exception as e:
             raise Exception(f"Error fetching latest price for {symbol}: {str(e)}")

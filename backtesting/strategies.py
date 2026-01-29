@@ -120,7 +120,9 @@ class RSIStrategy(BaseStrategy):
         gain = (delta.where(delta > 0, 0)).rolling(window=self.window).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=self.window).mean()
         
-        rs = gain / loss
+        # Avoid division by zero - when loss is 0, RSI is 100
+        rs = gain / loss.replace(0, np.nan)
+        rs = rs.fillna(float('inf'))
         rsi = 100 - (100 / (1 + rs))
         
         return rsi
