@@ -6,4 +6,4 @@ numpy==1.26.2
 yfinance==0.2.33
 python-dateutil==2.8.2
 requests==2.31.0
-gunicorn==21.2.0
+gunicorn==22.0.0
