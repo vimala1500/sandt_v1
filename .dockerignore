@@ -25,9 +25,8 @@ test_*.py
 tests/
 *.test.py
 
-# Documentation
+# Documentation (not needed in container)
 *.md
-!DEPLOY_TO_GCP.md
 
 # OS files
 .DS_Store

@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose port 8080 (Cloud Run default port)
-# Cloud Run expects applications to listen on the PORT environment variable
+# Cloud Run passes the port via the PORT environment variable
 EXPOSE 8080
 
 # Set environment variable for production
@@ -26,4 +26,5 @@ ENV DASH_DEBUG=False
 
 # Command to run the application
 # Uses gunicorn as production WSGI server for better performance
-CMD exec gunicorn --bind :8080 --workers 1 --threads 8 --timeout 0 app:server
+# Respects the PORT environment variable, defaulting to 8080
+CMD exec gunicorn --bind :${PORT:-8080} --workers 1 --threads 8 --timeout 300 app:server

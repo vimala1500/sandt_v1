@@ -354,7 +354,6 @@ This will take 3-5 minutes the first time. You'll see:
 ```bash
 gcloud run deploy stock-dashboard \
   --image gcr.io/my-dash-app-123/stock-dashboard \
-  --platform managed \
   --region us-central1 \
   --allow-unauthenticated
 ```
@@ -362,7 +361,6 @@ gcloud run deploy stock-dashboard \
 **Let's break this down:**
 - `stock-dashboard`: The name of your Cloud Run service
 - `--image`: The container image we just built
-- `--platform managed`: Use fully managed Cloud Run
 - `--region us-central1`: Deploy to the US Central region (choose one close to your users)
 - `--allow-unauthenticated`: Allow public access without login
 
@@ -460,6 +458,8 @@ This creates a database named `stockdata` in your instance.
 
 ### Step 6.5: Connect Cloud Run to Cloud SQL
 
+**Important Security Note:** For production deployments, use Google Secret Manager to store sensitive credentials securely. For this beginner guide, we'll use environment variables, but please upgrade to Secret Manager for production apps.
+
 Get your instance connection name:
 ```bash
 gcloud sql instances describe stock-dashboard-db --format="value(connectionName)"
@@ -472,12 +472,36 @@ Re-deploy your Cloud Run service with database connection:
 gcloud run deploy stock-dashboard \
   --image gcr.io/my-dash-app-123/stock-dashboard \
   --add-cloudsql-instances my-dash-app-123:us-central1:stock-dashboard-db \
-  --update-env-vars DB_USER=postgres,DB_PASS=YOUR_SECURE_PASSWORD,DB_NAME=stockdata,DB_HOST=/cloudsql/my-dash-app-123:us-central1:stock-dashboard-db
+  --update-env-vars DB_USER=postgres,DB_NAME=stockdata,INSTANCE_CONNECTION_NAME=my-dash-app-123:us-central1:stock-dashboard-db \
+  --set-secrets=DB_PASS=db-password:latest
 ```
 
 **What changed?**
 - `--add-cloudsql-instances`: Connects your Cloud Run service to the database
 - `--update-env-vars`: Sets environment variables your app can use to connect
+- `--set-secrets`: Securely injects the database password from Secret Manager
+
+**Setting up Secret Manager (Recommended):**
+```bash
+# Enable Secret Manager API
+gcloud services enable secretmanager.googleapis.com
+
+# Create a secret for the database password
+echo -n "YOUR_SECURE_PASSWORD" | gcloud secrets create db-password --data-file=-
+
+# Grant Cloud Run access to the secret
+gcloud secrets add-iam-policy-binding db-password \
+  --member=serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com \
+  --role=roles/secretmanager.secretAccessor
+```
+
+**For beginners using environment variables (less secure):**
+```bash
+gcloud run deploy stock-dashboard \
+  --image gcr.io/my-dash-app-123/stock-dashboard \
+  --add-cloudsql-instances my-dash-app-123:us-central1:stock-dashboard-db \
+  --update-env-vars DB_USER=postgres,DB_PASS=YOUR_SECURE_PASSWORD,DB_NAME=stockdata,INSTANCE_CONNECTION_NAME=my-dash-app-123:us-central1:stock-dashboard-db
+```
 
 ### Step 6.6: Update Your Application Code
 
@@ -499,9 +523,16 @@ To use the database, you'll need to modify your Python code. Here's an example u
        db_user = os.environ.get('DB_USER', 'postgres')
        db_pass = os.environ.get('DB_PASS', '')
        db_name = os.environ.get('DB_NAME', 'stockdata')
-       db_host = os.environ.get('DB_HOST', 'localhost')
+       instance_connection_name = os.environ.get('INSTANCE_CONNECTION_NAME', '')
        
-       connection_string = f"postgresql://{db_user}:{db_pass}@{db_host}/{db_name}"
+       # For Cloud SQL, use Unix socket connection
+       if instance_connection_name:
+           connection_string = f"postgresql://{db_user}:{db_pass}@/{db_name}?host=/cloudsql/{instance_connection_name}"
+       else:
+           # For local development
+           db_host = os.environ.get('DB_HOST', 'localhost')
+           connection_string = f"postgresql://{db_user}:{db_pass}@{db_host}/{db_name}"
+       
        engine = create_engine(connection_string)
        return engine
    ```
@@ -517,11 +548,16 @@ To use the database, you'll need to modify your Python code. Here's an example u
 **Why?** Logs help you debug issues and understand what's happening with your app.
 
 ```bash
-# View recent logs
-gcloud run services logs read stock-dashboard --region=us-central1
+# View recent logs (using current recommended approach)
+gcloud alpha run services logs read stock-dashboard --region=us-central1
 
 # Stream live logs
-gcloud run services logs tail stock-dashboard --region=us-central1
+gcloud alpha run services logs tail stock-dashboard --region=us-central1
+```
+
+**Alternative using Cloud Logging:**
+```bash
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=stock-dashboard" --limit 50 --format json
 ```
 
 Or in Cloud Console:
@@ -602,7 +638,7 @@ cd /path/to/sandt_v1
 
 **Solution:** Check logs:
 ```bash
-gcloud run services logs tail stock-dashboard --region=us-central1
+gcloud alpha run services logs tail stock-dashboard --region=us-central1
 ```
 
 Look for Python errors or missing dependencies.
@@ -661,7 +697,7 @@ For a personal project with moderate traffic:
 ### Cost Optimization Tips
 
 1. **Scale to zero:** Use `--min-instances=0` so you're not charged when the app isn't used
-2. **Choose right region:** Pick one close to your users for better performance and lower egress costs
+2. **Choose the right region:** Pick one close to your users for better performance and lower egress costs
 3. **Monitor usage:** Set up billing alerts in Cloud Console
 4. **Stop unused services:** Delete resources you're not using
 
@@ -720,12 +756,11 @@ gcloud services enable run.googleapis.com containerregistry.googleapis.com
 gcloud builds submit --tag gcr.io/my-dash-app-123/stock-dashboard
 gcloud run deploy stock-dashboard \
   --image gcr.io/my-dash-app-123/stock-dashboard \
-  --platform managed \
   --region us-central1 \
   --allow-unauthenticated
 
 # View logs
-gcloud run services logs tail stock-dashboard --region=us-central1
+gcloud alpha run services logs tail stock-dashboard --region=us-central1
 
 # Update app
 gcloud builds submit --tag gcr.io/my-dash-app-123/stock-dashboard
