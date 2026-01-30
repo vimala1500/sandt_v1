@@ -25,6 +25,9 @@ app.layout = create_layout()
 # Register callbacks
 register_callbacks(app)
 
+# Expose Flask server for production deployment (gunicorn, etc.)
+server = app.server
+
 # Run the app
 if __name__ == '__main__':
     print("Starting Stock Backtesting Dashboard...")

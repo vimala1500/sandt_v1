@@ -38,7 +38,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Running the Dashboard
+### Running the Dashboard Locally
 
 Start the Dash application:
 
@@ -47,6 +47,21 @@ python app.py
 ```
 
 Then open your browser and navigate to `http://localhost:8050`
+
+### Deploying to Google Cloud Run
+
+Want to deploy your dashboard to the cloud? Check out our comprehensive deployment guide:
+
+📖 **[Complete GCP Deployment Guide](DEPLOY_TO_GCP.md)**
+
+This beginner-friendly guide covers:
+- Google Cloud Platform setup
+- Docker containerization
+- Cloud Run deployment
+- Optional Cloud SQL database setup
+- Cost optimization tips
+
+Perfect for those with no prior GCP experience!
 
 ### Running a Backtest
 
