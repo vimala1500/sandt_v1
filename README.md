@@ -4,11 +4,13 @@ A Python-based stock backtesting application with an interactive Dash frontend f
 
 ## Features
 
-- **Stock Data Fetching**: Download historical stock data using Yahoo Finance API
+- **Stock Data Fetching**: Download historical stock data using Yahoo Finance API (requires internet connectivity)
 - **Backtesting Engine**: Test trading strategies on historical data
 - **Interactive Dashboard**: Visualize backtest results with Dash and Plotly
 - **Strategy Analysis**: Analyze strategy performance with key metrics
 - **Multiple Strategies**: Support for various trading strategies (SMA, EMA, RSI)
+- **Robust Error Handling**: Automatic retry logic for transient network failures
+- **Configurable Timeouts**: Adjust request timeouts and retry attempts via environment variables
 
 ## Installation
 
@@ -16,6 +18,7 @@ A Python-based stock backtesting application with an interactive Dash frontend f
 
 - Python 3.8 or higher
 - pip package manager
+- **Internet connectivity** (required for fetching stock data from Yahoo Finance API)
 
 ### Setup
 
@@ -34,6 +37,16 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 3. Install dependencies:
 ```bash
 pip install -r requirements.txt
+```
+
+4. (Optional) Configure environment variables:
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env to customize timeout and retry settings
+# YFINANCE_TIMEOUT=60
+# YFINANCE_MAX_RETRIES=3
 ```
 
 ## Usage
@@ -131,6 +144,50 @@ The backtesting engine calculates the following metrics:
 - **Max Drawdown**: Largest peak-to-trough decline
 - **Win Rate**: Percentage of profitable trades
 - **Number of Trades**: Total trades executed
+
+## Network Requirements
+
+This application requires internet access to fetch stock data from Yahoo Finance API. The following domains must be accessible:
+
+- `query1.finance.yahoo.com` (primary API endpoint)
+- `query2.finance.yahoo.com` (backup API endpoint)
+- `fc.yahoo.com` (session management)
+
+### Configuration
+
+You can configure the data fetching behavior using environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `YFINANCE_TIMEOUT` | 30 | Request timeout in seconds |
+| `YFINANCE_MAX_RETRIES` | 3 | Maximum retry attempts for failed requests |
+
+### Troubleshooting Data Fetching Issues
+
+If you encounter "No data found for symbol" errors:
+
+1. **Check internet connectivity**: Ensure you can access Yahoo Finance websites
+2. **Verify firewall settings**: Make sure outbound HTTPS (port 443) is allowed
+3. **Review logs**: Check application logs for detailed error messages
+4. **Increase timeout**: Set `YFINANCE_TIMEOUT=60` for slow connections
+5. **Cloud Run deployment**: Ensure egress connectivity is enabled (see deployment guide)
+
+For detailed diagnosis and solutions, see [STOCK_DATA_FETCHING_ANALYSIS.md](STOCK_DATA_FETCHING_ANALYSIS.md).
+
+## Testing
+
+Run the test suite to verify functionality:
+
+```bash
+# Test strategies with sample data (no internet required)
+python test_sample.py
+
+# Test data fetcher (includes unit tests with mocks)
+python test_data_fetcher.py
+
+# Test repository structure
+python test_structure.py
+```
 
 ## License
 
