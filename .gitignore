@@ -46,7 +46,7 @@ htmlcov/
 # Data files
 *.csv
 *.xlsx
-data/downloaded/
+data/
 *.db
 *.sqlite
 

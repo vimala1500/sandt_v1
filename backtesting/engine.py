@@ -10,7 +10,8 @@ from backtesting.data_fetcher import DataFetcher
 class BacktestEngine:
     """Engine for backtesting trading strategies"""
     
-    def __init__(self, symbol, start_date, end_date, initial_capital=10000):
+    def __init__(self, symbol, start_date, end_date, initial_capital=10000, 
+                 data_source=None, use_cache=True, data_dir='data'):
         """
         Initialize backtesting engine
         
@@ -19,6 +20,9 @@ class BacktestEngine:
             start_date (str): Start date in 'YYYY-MM-DD' format
             end_date (str): End date in 'YYYY-MM-DD' format
             initial_capital (float): Initial investment capital
+            data_source (str, optional): Path to parquet file or 'yfinance' to fetch from API
+            use_cache (bool): If True, try to use cached data first (default: True)
+            data_dir (str): Directory containing cached parquet files (default: 'data')
         """
         self.symbol = symbol
         self.start_date = start_date
@@ -27,7 +31,17 @@ class BacktestEngine:
         
         # Fetch data
         fetcher = DataFetcher()
-        self.data = fetcher.fetch_data(symbol, start_date, end_date)
+        
+        if data_source and data_source.endswith('.parquet'):
+            # Load from specific parquet file
+            self.data = fetcher.load_from_parquet(data_source)
+        elif data_source == 'yfinance':
+            # Force fetch from yfinance (ignore cache)
+            self.data = fetcher.fetch_data(symbol, start_date, end_date)
+        else:
+            # Use fetch_or_load which checks cache first
+            self.data = fetcher.fetch_or_load(symbol, start_date, end_date, 
+                                              data_dir=data_dir, use_cache=use_cache)
     
     def run(self, strategy):
         """

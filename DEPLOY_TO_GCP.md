@@ -660,6 +660,61 @@ gcloud run services update stock-dashboard \
 3. Environment variables are set correctly
 4. Database credentials are correct
 
+### Issue: "No data found for symbol" errors
+
+**Symptoms:** Dashboard fails to fetch stock data (e.g., "No data found for symbol MSFT")
+
+**Root Cause:** Network connectivity issues preventing access to Yahoo Finance API
+
+**Solutions:**
+
+1. **Enable egress connectivity:**
+   ```bash
+   gcloud run services update stock-dashboard \
+     --vpc-egress all-traffic \
+     --region=us-central1
+   ```
+
+2. **Check service logs for network errors:**
+   ```bash
+   gcloud run services logs tail stock-dashboard --region=us-central1
+   ```
+   Look for: "Connection refused", "DNS resolution", "Timeout", or "Max retries exceeded"
+
+3. **Adjust timeout and retry parameters:**
+   ```bash
+   gcloud run services update stock-dashboard \
+     --set-env-vars YFINANCE_TIMEOUT=60,YFINANCE_MAX_RETRIES=5 \
+     --timeout=300 \
+     --region=us-central1
+   ```
+
+4. **Test external connectivity:**
+   ```bash
+   # From Cloud Shell, test Yahoo Finance access
+   curl -I https://query1.finance.yahoo.com/
+   ```
+
+5. **For VPC-restricted environments, use VPC connector:**
+   ```bash
+   # Create connector
+   gcloud compute networks vpc-access connectors create stock-connector \
+     --region=us-central1 \
+     --network=default \
+     --range=10.8.0.0/28
+   
+   # Update service
+   gcloud run services update stock-dashboard \
+     --vpc-connector=stock-connector \
+     --vpc-egress=all-traffic \
+     --region=us-central1
+   ```
+
+**Important:** Yahoo Finance API requires internet access. Ensure Cloud Run can reach:
+- `query1.finance.yahoo.com`
+- `query2.finance.yahoo.com`
+- `fc.yahoo.com`
+
 ### Issue: Docker build is very slow
 
 **Solution:** Check your `.dockerignore` file to exclude unnecessary files:

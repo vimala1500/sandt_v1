@@ -558,6 +558,92 @@ gcloud run services update stock-dashboard \
 
 **Note:** This increases costs as you'll be charged for the idle instance.
 
+### Issue: "No Data Found for Symbol" Errors
+
+**Symptoms:** 
+- Dashboard shows "No data found for symbol MSFT" or similar errors
+- Backtests fail immediately without fetching data
+- Logs show connection errors or DNS resolution failures
+
+**Root Cause:** Cloud Run container cannot access Yahoo Finance API due to network restrictions.
+
+**Solution 1: Verify Egress Connectivity**
+
+Cloud Run services need egress (outbound) connectivity to access external APIs like Yahoo Finance:
+
+```bash
+# Check current service configuration
+gcloud run services describe stock-dashboard --region us-central1 --format='get(spec.template.metadata.annotations)'
+
+# If egress is restricted, update the service to allow all egress
+gcloud run services update stock-dashboard \
+  --vpc-egress all-traffic \
+  --region us-central1
+```
+
+**Solution 2: Check Logs for Network Errors**
+
+View detailed logs to diagnose the issue:
+
+```bash
+# View recent logs
+gcloud run services logs tail stock-dashboard --region us-central1
+
+# Look for these error patterns:
+# - "Failed to resolve" (DNS issues)
+# - "Connection refused" (Firewall blocking)
+# - "Timeout" (Network latency)
+# - "Max retries exceeded" (Repeated failures)
+```
+
+**Solution 3: Configure Retry Parameters**
+
+Set environment variables to adjust timeout and retry behavior:
+
+```bash
+gcloud run services update stock-dashboard \
+  --set-env-vars YFINANCE_TIMEOUT=60,YFINANCE_MAX_RETRIES=5 \
+  --region us-central1
+```
+
+**Solution 4: Test Network Connectivity**
+
+Deploy with a startup script to test connectivity:
+
+```bash
+# SSH into Cloud Shell and test
+curl -I https://query1.finance.yahoo.com/
+curl -I https://fc.yahoo.com/
+
+# If these fail, there's a network restriction
+```
+
+**Solution 5: Use VPC Connector (Advanced)**
+
+If your organization restricts egress, configure VPC connector:
+
+1. Create VPC connector:
+```bash
+gcloud compute networks vpc-access connectors create stock-dashboard-connector \
+  --region us-central1 \
+  --network default \
+  --range 10.8.0.0/28
+```
+
+2. Update service to use connector:
+```bash
+gcloud run services update stock-dashboard \
+  --vpc-connector stock-dashboard-connector \
+  --vpc-egress all-traffic \
+  --region us-central1
+```
+
+**Prevention:**
+- Always test data fetching in development before deploying
+- Monitor logs after deployment
+- Set up alerts for repeated fetch failures
+- Consider implementing a data caching layer to reduce API dependency
+
 ### Issue: Cloud Shell Session Timeout
 
 **Problem:** Cloud Shell disconnects after 20 minutes of inactivity.
