@@ -22,15 +22,24 @@ class TestDataFetcher(unittest.TestCase):
         """Set up test fixtures"""
         self.fetcher = DataFetcher(timeout=10, max_retries=2)
         
-        # Create sample data
+        # Create sample data with lowercase columns (as returned by fetch_data)
         dates = pd.date_range(start='2023-01-01', end='2023-01-31', freq='D')
         self.sample_data = pd.DataFrame({
-            'Open': [100.0] * len(dates),
-            'High': [105.0] * len(dates),
-            'Low': [95.0] * len(dates),
-            'Close': [102.0] * len(dates),
-            'Volume': [1000000] * len(dates)
+            'open': [100.0] * len(dates),
+            'high': [105.0] * len(dates),
+            'low': [95.0] * len(dates),
+            'close': [102.0] * len(dates),
+            'volume': [1000000] * len(dates)
         }, index=dates)
+        
+        # Create sample data for get_latest_price (uppercase as returned by yfinance)
+        self.sample_latest_data = pd.DataFrame({
+            'Open': [100.0],
+            'High': [105.0],
+            'Low': [95.0],
+            'Close': [102.0],
+            'Volume': [1000000]
+        }, index=[dates[-1]])
     
     def test_initialization_defaults(self):
         """Test DataFetcher initialization with defaults"""
@@ -50,6 +59,14 @@ class TestDataFetcher(unittest.TestCase):
             fetcher = DataFetcher()
             self.assertEqual(fetcher.timeout, 45)
             self.assertEqual(fetcher.max_retries, 4)
+    
+    def test_initialization_from_invalid_env(self):
+        """Test DataFetcher initialization with invalid environment variables"""
+        with patch.dict(os.environ, {'YFINANCE_TIMEOUT': 'invalid', 'YFINANCE_MAX_RETRIES': 'bad'}):
+            fetcher = DataFetcher(timeout=50, max_retries=5)
+            # Should fallback to defaults when env vars are invalid
+            self.assertEqual(fetcher.timeout, 50)
+            self.assertEqual(fetcher.max_retries, 5)
     
     @patch('backtesting.data_fetcher.yf.Ticker')
     def test_fetch_data_success(self, mock_ticker):
@@ -118,7 +135,7 @@ class TestDataFetcher(unittest.TestCase):
         
         # Verify all retries were attempted
         self.assertEqual(mock_ticker_instance.history.call_count, self.fetcher.max_retries)
-        self.assertIn("Failed to fetch data", str(context.exception))
+        self.assertIn("Failed data fetch", str(context.exception))
         self.assertIn("Please check internet connectivity", str(context.exception))
     
     @patch('backtesting.data_fetcher.yf.Ticker')
@@ -135,14 +152,14 @@ class TestDataFetcher(unittest.TestCase):
         
         # Verify only one attempt was made
         self.assertEqual(mock_ticker_instance.history.call_count, 1)
-        self.assertIn("Error fetching data", str(context.exception))
+        self.assertIn("Error during data fetch", str(context.exception))
     
     @patch('backtesting.data_fetcher.yf.Ticker')
     def test_get_latest_price_success(self, mock_ticker):
         """Test successful latest price fetching"""
-        # Mock ticker behavior
+        # Mock ticker behavior with uppercase columns (as returned by yfinance)
         mock_ticker_instance = Mock()
-        mock_ticker_instance.history.return_value = self.sample_data.tail(1)
+        mock_ticker_instance.history.return_value = self.sample_latest_data
         mock_ticker.return_value = mock_ticker_instance
         
         # Fetch latest price
