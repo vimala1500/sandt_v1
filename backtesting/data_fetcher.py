@@ -178,3 +178,59 @@ class DataFetcher:
             'TSLA', 'NVDA', 'JPM', 'V', 'WMT',
             'DIS', 'NFLX', 'PYPL', 'INTC', 'AMD'
         ]
+    
+    def load_from_parquet(self, parquet_file):
+        """
+        Load stock data from a parquet file
+        
+        Args:
+            parquet_file (str): Path to parquet file
+            
+        Returns:
+            pd.DataFrame: Historical stock data with OHLCV columns
+            
+        Raises:
+            FileNotFoundError: If parquet file doesn't exist
+            Exception: If error reading parquet file
+        """
+        if not os.path.exists(parquet_file):
+            raise FileNotFoundError(f"Parquet file not found: {parquet_file}")
+        
+        try:
+            logger.info(f"Loading data from parquet: {parquet_file}")
+            data = pd.read_parquet(parquet_file)
+            logger.info(f"Successfully loaded {len(data)} rows from {parquet_file}")
+            return data
+        except Exception as e:
+            error_msg = f"Error reading parquet file {parquet_file}: {str(e)}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+    
+    def fetch_or_load(self, symbol, start_date, end_date, data_dir='data', use_cache=True):
+        """
+        Fetch data from cache (parquet) if available, otherwise download from yfinance
+        
+        Args:
+            symbol (str): Stock ticker symbol
+            start_date (str): Start date in 'YYYY-MM-DD' format
+            end_date (str): End date in 'YYYY-MM-DD' format
+            data_dir (str): Directory containing cached parquet files (default: 'data')
+            use_cache (bool): If True, try to load from cache first (default: True)
+            
+        Returns:
+            pd.DataFrame: Historical stock data with OHLCV columns
+        """
+        # Check for cached data
+        if use_cache:
+            parquet_file = os.path.join(data_dir, f"{symbol}_{start_date}_{end_date}.parquet")
+            
+            if os.path.exists(parquet_file):
+                try:
+                    logger.info(f"Using cached data from {parquet_file}")
+                    return self.load_from_parquet(parquet_file)
+                except Exception as e:
+                    logger.warning(f"Failed to load from cache: {str(e)}. Fetching from yfinance...")
+        
+        # Fallback to fetching from yfinance
+        return self.fetch_data(symbol, start_date, end_date)
+
